@@ -259,7 +259,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
                         } else {
                             outputSurface.drawImage(true)
                         }
-                        if (decodeCount < MAX_FRAMES) {
+                        if (decodeCount < MAX_FRAMES && (decodeCount%2)==0) {                       //
                             val startWhen = System.nanoTime()
                             val currentFrame = outputSurface.retrieveFrame(decodeCount, presentationTimeUs)
                             listener.onCurrentFrameExtracted(currentFrame)
@@ -282,6 +282,6 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
 
     companion object {
         const val TAG = "FrameExtractor"
-        const val MAX_RESOLUTION = 2000
+        const val MAX_RESOLUTION = 500
     }
 }

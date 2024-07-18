@@ -183,6 +183,7 @@ class CodecOutputSurface(width: Int, height: Int, private val isPortrait: Boolea
                     }
                 } catch (ie: InterruptedException) {
                     // shouldn't happen
+                    Log.d("awaitNewImage","exception presa")
                     throw RuntimeException(ie)
                 }
             }
