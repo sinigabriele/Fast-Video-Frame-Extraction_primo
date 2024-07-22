@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">Fast Frame Extraction</string>
+
+    <string-array name="Joints">
+        <item>Left Knee</item>
+        <item>Left Hip</item>
+        <item>Left Shoulder</item>
+        <item>Left Elbow</item>
+        <item>Right Knee</item>
+        <item>Right Hip</item>
+        <item>Right Shoulder</item>
+        <item>Right Elbow</item>
+    </string-array>
 </resources>

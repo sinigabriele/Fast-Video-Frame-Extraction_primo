@@ -118,7 +118,8 @@ object VisualizationUtils {
     }
 
 
-    fun estremi(scores: List<Pair<String,Person>>,joint: BodyPart):Float{
+    fun estremi(scores: List<Pair<String,Person>>,joint: Int):Float{
+        val joint = IdToJoint[joint]
         var min : Person
         var max : Person
         var mid : Person
@@ -212,7 +213,7 @@ object VisualizationUtils {
 
     }
 
-    fun wrap_angle(posA : Person,posB : Person,joint: BodyPart): Float{
+    fun wrap_angle(posA : Person,posB : Person,joint: BodyPart?): Float{
         var joints = JointAngle[joint]
         return points2D_to_angles(posA.keyPoints[joints!![0]?.position].coordinate,
             posA.keyPoints[joints!![1]?.position].coordinate ,
@@ -220,7 +221,7 @@ object VisualizationUtils {
         )
     }
 
-    fun wrap_angle360(posA : Person,posB : Person,joint: BodyPart): Float{
+    fun wrap_angle360(posA : Person,posB : Person,joint: BodyPart?): Float{
         var joints = JointAngle[joint]
         return p2a(posA.keyPoints[joints!![0]?.position].coordinate,
             posA.keyPoints[joints!![1]?.position].coordinate ,
@@ -234,6 +235,17 @@ object VisualizationUtils {
 
         return PointF(C.x+Cx,C.y+Cy)
     }
+
+    private val IdToJoint = mapOf(
+        0 to BodyPart.LEFT_KNEE,
+        1 to BodyPart.LEFT_HIP,
+        2 to BodyPart.LEFT_SHOULDER,
+        3 to BodyPart.LEFT_ELBOW,
+        4 to BodyPart.RIGHT_KNEE ,
+        5 to BodyPart.RIGHT_HIP,
+        6 to BodyPart.RIGHT_SHOULDER,
+        7 to BodyPart.RIGHT_ELBOW
+    )
 
 
     private val JointAngle = mapOf(

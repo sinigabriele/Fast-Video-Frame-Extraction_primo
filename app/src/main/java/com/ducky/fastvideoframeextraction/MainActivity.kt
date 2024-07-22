@@ -11,6 +11,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,8 +47,15 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
     private var titles: ArrayList<String> = ArrayList()
     private lateinit var videoInputFile: File
 
+    private var selectedJoint: String? = null
+    private var selectedJointId: Int = 0
+//    private val
+
+
+
     var totalSavingTimeMS: Long = 0
     lateinit var infoTextView: TextView
+    lateinit var angleTextView: TextView
 
     private lateinit var detector : PoseDetector
     private var device = Device.CPU
@@ -84,10 +93,29 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        // get reference to the string array that we just created
+        val joint = resources.getStringArray(R.array.Joints)
+        // create an array adapter and pass the required parameter
+        // in our case pass the context, drop down layout , and array.
+        val arrayAdapter = ArrayAdapter(this, R.layout.dropdown_item, joint)
+        // get reference to the autocomplete text view
+        val autocompleteTV = findViewById<AutoCompleteTextView>(R.id.autoCompleteTextView)
+        // set adapter to the autocomplete tv to the arrayAdapter
+        autocompleteTV.setAdapter(arrayAdapter)
+
+        // Imposta un listener per rilevare quando viene selezionato un elemento
+        autocompleteTV.setOnItemClickListener { parent, view, position, id ->
+            // Aggiorna la variabile con il valore selezionato
+            selectedJoint = parent.getItemAtPosition(position) as String
+            selectedJointId = position
+            // Puoi anche fare altre operazioni con il valore selezionato qui
+            // Ad esempio, stampare il valore selezionato nel log
+            println("Selected joint: $selectedJoint")
+        }
 
         val videoSelectBt: Button = this.findViewById(R.id.select_bt)
         infoTextView = this.findViewById(R.id.info_tv)
-
+        angleTextView = findViewById<TextView>(R.id.text_view)
         videoSelectBt.setOnClickListener {
             // Clear all previous images path and title
             imagePaths.clear()
@@ -266,7 +294,9 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
     @SuppressLint("SetTextI18n")
     override fun onAllFrameExtracted(processedFrameCount: Int, processedTimeMs: Long) {
         Log.d(TAG, "Save: $processedFrameCount frames in: $processedTimeMs ms.")
-        var res = VisualizationUtils.estremi(scores, BodyPart.RIGHT_HIP)
+        var res = VisualizationUtils.estremi(scores,selectedJointId)
+        angleTextView.setText("Joint Angle: " + res.toString())
+
         this.runOnUiThread {
             updateRecycleView()
             infoTextView.text = "Extract $processedFrameCount frames took $processedTimeMs ms| Saving took: $totalSavingTimeMS ms"
