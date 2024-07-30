@@ -6,10 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -21,9 +25,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.recyclerview.widget.*
-import com.ducky.fastvideoframeextraction.data.BodyPart
 import com.ducky.fastvideoframeextraction.data.Device
 import com.ducky.fastvideoframeextraction.data.KeyPoint
 import com.ducky.fastvideoframeextraction.data.Person
@@ -33,23 +37,44 @@ import com.ducky.fastvideoframeextraction.decoder.IVideoFrameExtractor
 import com.ducky.fastvideoframeextraction.ml.ModelType
 import com.ducky.fastvideoframeextraction.ml.MoveNet
 import com.ducky.fastvideoframeextraction.ml.PoseDetector
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 
-class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
+class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.OnItemClickListener{
+
+
+
+
 
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
+
+
+    private lateinit var recyclerView: RecyclerView
     private lateinit var imageAdapter: ImageAdapter
-    private var imagePaths = ArrayList<Uri>()
-    private var titles: ArrayList<String> = ArrayList()
+    private val imagePaths = arrayListOf<Uri>()  // Add your image URIs here
+    private val titles = arrayListOf<String>()   // Add your titles here
+
     private lateinit var videoInputFile: File
 
     private var selectedJoint: String? = null
     private var selectedJointId: Int = 0
 //    private val
+    private val PERMISSION_CODE = 1000
+    private val VIDEO_CAPTURE_CODE = 1001
+
+    var vFilename: String = ""
+    val path  = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getAbsolutePath()  + File.separator
+    //val root =  Environment.getExternalFilesDir(Environment.DIRECTORY_PICTURES)?.path+File.separator+"HofitApp"+File.separator
+    val p = Environment.DIRECTORY_MOVIES + File.separator
+   // private val REQUEST_VIDEO_CAPTURE = 1
+    private lateinit var videoUri: Uri
 
 
 
@@ -129,7 +154,45 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
         if (!allPermissionsGranted()) {
             getRuntimePermissions()
         }
+
         detector = MoveNet.create(this, device, ModelType.Lightning)
+
+
+        val btn_takephoto_first: Button = this.findViewById(R.id.take_first_photo_bt)
+        btn_takephoto_first.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                openCamera()
+            } else {
+                Toast.makeText(this,"Sorry you're version android is not support, Min Android 6.0 (Marsmallow)", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        val btn_takephoto_second: Button = this.findViewById(R.id.take_second_photo_bt)
+        btn_takephoto_second.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                compute()
+            } else {
+                Toast.makeText(this,"Sorry you're version android is not support, Min Android 6.0 (Marsmallow)", Toast.LENGTH_LONG).show()
+            }
+        }
+        updateRecyclerView()
+    }
+
+
+    private fun compute(): Float {
+        var selected = imageAdapter.selectedItems
+        var midInd = selected.sum() / 2
+        selected.add(midInd)
+        for (item in selected) {
+            var bitmap = BitmapFactory.decodeFile(imagePaths[item].path)
+            if(detector!=null) {
+                val (processed, score) = processPhoto(bitmap, detector)
+                scores.add(Pair(imagePaths[item].path,score) as Pair<String, Person>)
+            }
+
+        }
+        val res= VisualizationUtils.posiComp(scores,selectedJointId)
+        return res
     }
 
     private fun openGalleryForVideo() {
@@ -139,28 +202,25 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
         resultLauncher.launch(intent)
     }
 
-    private fun updateRecycleView() {
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerview)
-        if (recyclerView != null) {
-            val layoutManager = StaggeredGridLayoutManager(3, OrientationHelper.VERTICAL)
-            layoutManager.gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_MOVE_ITEMS_BETWEEN_SPANS
-            recyclerView.layoutManager = layoutManager
-            imageAdapter = ImageAdapter(this, imagePaths, titles)
-            recyclerView.adapter = imageAdapter
-            recyclerView.itemAnimator = DefaultItemAnimator()
 
-            val dividerItemDecorationVertical = DividerItemDecoration(
-                recyclerView.context,
-                LinearLayout.HORIZONTAL
-            )
+    private fun updateRecyclerView() {
+        recyclerView = findViewById(R.id.recyclerview)
+        val layoutManager = StaggeredGridLayoutManager(3, StaggeredGridLayoutManager.VERTICAL)
+        layoutManager.gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_MOVE_ITEMS_BETWEEN_SPANS
+        recyclerView.layoutManager = layoutManager
+        imageAdapter = ImageAdapter(this, imagePaths, titles, this)
+        recyclerView.adapter = imageAdapter
+        recyclerView.itemAnimator = DefaultItemAnimator()
 
-            val dividerItemDecorationHorizontal = DividerItemDecoration(
-                recyclerView.context,
-                LinearLayout.VERTICAL
-            )
-            recyclerView.addItemDecoration(dividerItemDecorationVertical)
-            recyclerView.addItemDecoration(dividerItemDecorationHorizontal)
-        }
+        val dividerItemDecorationVertical = DividerItemDecoration(recyclerView.context, LinearLayout.HORIZONTAL)
+        val dividerItemDecorationHorizontal = DividerItemDecoration(recyclerView.context, LinearLayout.VERTICAL)
+        recyclerView.addItemDecoration(dividerItemDecorationVertical)
+        recyclerView.addItemDecoration(dividerItemDecorationHorizontal)
+    }
+
+    override fun onItemClick(selectedIds: Set<Int>) {
+        // Handle the selected item IDs
+        Toast.makeText(this, "Selected IDs: $selectedIds", Toast.LENGTH_SHORT).show()
     }
 
     private fun getRequiredPermissions(): Array<String?> {
@@ -226,7 +286,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
 
         val startSavingTime = System.currentTimeMillis()
         // 1. Convert frame byte buffer to bitmap
-        val imageBitmap = Utils.fromBufferToBitmap(currentFrame.byteBuffer, currentFrame.width, currentFrame.height)
+        var imageBitmap = Utils.fromBufferToBitmap(currentFrame.byteBuffer, currentFrame.width, currentFrame.height)
 
         // 2. Get the frame file in app external file directory
 //        val allFrameFileFolder = File(this.getExternalFilesDir(null), UUID.randomUUID().toString())
@@ -238,8 +298,9 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
         val frameFile = File(path, videoInputFile.nameWithoutExtension +"frame_num_${currentFrame.timestamp.toString().padStart(10, '0')}.jpeg")
         //imageBitmap?.let{detector.estimatePoses(it)}
         if(detector!=null) {
-            val (processed, score) = processPhoto(imageBitmap?.let { verticalFlip(it) }, detector)
-            processed?.let {
+            //val (processed, score) = processPhoto(imageBitmap?.let { verticalFlip(it) }, detector)
+            imageBitmap = imageBitmap?.let { verticalFlip(it) }
+            imageBitmap?.let {
                 val savedFile = Utils.saveImageToFile(it, frameFile)
                 savedFile?.let {
                     imagePaths.add(savedFile.toUri())
@@ -247,7 +308,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
                 }
             }
 
-            scores.add(Pair(frameFile.absolutePath,score) as Pair<String, Person>)
+            //scores.add(Pair(frameFile.absolutePath,score) as Pair<String, Person>)
         }
         // 3. Save current frame to storage
 
@@ -294,12 +355,196 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor {
     @SuppressLint("SetTextI18n")
     override fun onAllFrameExtracted(processedFrameCount: Int, processedTimeMs: Long) {
         Log.d(TAG, "Save: $processedFrameCount frames in: $processedTimeMs ms.")
-        var res = VisualizationUtils.estremi(scores,selectedJointId)
-        angleTextView.setText("Joint Angle: " + res.toString())
+        //var res = VisualizationUtils.estremi(scores,selectedJointId)
+        //angleTextView.setText("Joint Angle: " + res.toString())
 
         this.runOnUiThread {
-            updateRecycleView()
+            updateRecyclerView()
             infoTextView.text = "Extract $processedFrameCount frames took $processedTimeMs ms| Saving took: $totalSavingTimeMS ms"
         }
     }
+
+//    private fun openCamera() {
+//        val cameraIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+//        if (cameraIntent.resolveActivity(packageManager) != null) {
+//            var videoFile: File? = null
+//            try {
+//                videoFile = createVideoFile()
+//            } catch (ex: IOException) {
+//                ex.printStackTrace()
+//                Toast.makeText(this, "Error creating video file", Toast.LENGTH_SHORT).show()
+//            }
+//
+//            if (videoFile != null) {
+//                videoUri = FileProvider.getUriForFile(
+//                    this,
+//                    applicationContext.packageName + ".fileprovider", videoFile
+//                )
+//                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri)
+//                startActivityForResult(cameraIntent, VIDEO_CAPTURE_CODE)
+//            }
+//        }
+//    }
+
+    private fun openCamera() {
+        //val values = ContentValues()
+//        values.put(MediaStore.Images.Media.TITLE, "New Picture")
+//        values.put(MediaStore.Images.Media.DESCRIPTION, "From the Camera")
+
+        //camera intent
+        val cameraIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+
+        // set filename
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        vFilename = "VID_" + timeStamp + ".mp4"
+
+
+        // set direcory folder
+        val file = File(path, vFilename);
+        //val file = createVideoFile()
+        val video_uri = FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".provider", file)
+
+        //cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, video_uri)
+        startActivityForResult(cameraIntent, VIDEO_CAPTURE_CODE)
+
+
+//        val videoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+//        if (videoIntent.resolveActivity(packageManager) != null) {
+//            val videoFile: File? = try {
+//                createVideoFile()
+//            } catch (ex: IOException) {
+//                // Handle error
+//                null
+//            }
+//            videoFile?.also {
+//                videoUri = FileProvider.getUriForFile(
+//                    this,
+//                    "${BuildConfig.APPLICATION_ID}.provider",
+//                    it
+//                )
+//                videoIntent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri)
+//                startActivityForResult(videoIntent, REQUEST_VIDEO_CAPTURE)
+//            }
+//        }
+    }
+//        if (cameraIntent.resolveActivity(packageManager) != null) {
+//            startActivityForResult(videoIntent, REQUEST_VIDEO_CAPTURE)
+//        }
+
+
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        //called when user presses ALLOW or DENY from Permission Request Popup
+        when(requestCode){
+            PERMISSION_CODE -> {
+                if (grantResults.size > 0 && grantResults[0] ==
+                    PackageManager.PERMISSION_GRANTED){
+                    //permission from popup was granted
+                    openCamera()
+                } else{
+                    //permission from popup was denied
+                    Toast.makeText(this,"permission denied", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+//        super.onActivityResult(requestCode, resultCode, data)
+//        if (resultCode == RESULT_OK) {
+//
+//            //File object of camera image
+//            val file = File(path, vFilename)
+//
+//            Toast.makeText(this,file.toString(), Toast.LENGTH_LONG).show()
+//
+//            //Uri of camera image
+//            val uri = FileProvider.getUriForFile(this, this.getApplicationContext().getPackageName() + ".provider", file)
+//            videoInputFile = file
+////            myImageView.setImageURI(uri)
+//            val frameExtractor = FrameExtractor(this)
+//            executorService.execute {
+//                try {
+//
+//                    frameExtractor.extractFrames(file.absolutePath)
+//                } catch (exception: Exception) {
+//                    exception.printStackTrace()
+//                    this.runOnUiThread {
+//                        Toast.makeText(this, "Failed to extract frames", Toast.LENGTH_SHORT).show()
+//                    }
+//                }
+//            }
+//            updateRecyclerView()
+//        }
+//    }
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (resultCode != RESULT_OK){
+        return
+    }
+    when(requestCode){
+        VIDEO_CAPTURE_CODE -> {
+            val videoUri = data?.data
+            if(videoUri == null){
+                return
+            }
+
+            //you can extract frame using Glide also but here i did not //use
+
+            val mimeType: String = contentResolver.getType(videoUri).toString()            //Save file to upload on server
+            var savedfile = saveVideoToAppScopeStorage(this, videoUri, mimeType)
+            if (savedfile != null) {
+                videoInputFile = savedfile
+            }
+            val frameExtractor = FrameExtractor(this)
+            executorService.execute {
+                try {
+
+                    savedfile?.let { frameExtractor.extractFrames(it.absolutePath) }
+                } catch (exception: Exception) {
+                    exception.printStackTrace()
+                    this.runOnUiThread {
+                        Toast.makeText(this, "Failed to extract frames", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            updateRecyclerView()
+        }
+    }
+
 }
+
+
+
+    fun saveVideoToAppScopeStorage(context: Context, videoUri: Uri?, mimeType: String?): File? {
+        if(videoUri == null || mimeType == null){
+            return null
+        }
+
+        val inputStream = context.contentResolver.openInputStream(videoUri)
+        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DCIM), vFilename)
+        file.deleteOnExit()
+        file.createNewFile()
+        val out = FileOutputStream(file)
+        val bos = BufferedOutputStream(out)
+        val buf = ByteArray(1024)
+        inputStream?.read(buf)
+        do {
+            bos.write(buf)
+        } while (inputStream?.read(buf) !== -1)
+        //out.close()
+        bos.close()
+        inputStream.close()
+        return file
+    }
+}
+
+
+
+
+
+
+
+
+

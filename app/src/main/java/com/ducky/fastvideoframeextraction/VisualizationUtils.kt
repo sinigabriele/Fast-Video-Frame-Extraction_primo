@@ -117,6 +117,60 @@ object VisualizationUtils {
         return angle.toFloat()
     }
 
+    fun posiComp(scores: List<Pair<String,Person>>,joint: Int):Float{
+        val joint = IdToJoint[joint]
+        var min = scores[0].second
+        var max = scores[1].second
+        var mid = scores[2].second
+        var minIndx = 0
+        var maxIndx = 1
+        var midIndx = 2
+
+
+        var joints = JointAngle[joint]
+//        var angle_min =  points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
+//            min.keyPoints[joints!![1]?.position].coordinate,
+//            min.keyPoints[joints!![2]?.position].coordinate)
+//        var angle_max =  points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
+//            max.keyPoints[joints!![1]?.position].coordinate,
+//            max.keyPoints[joints!![2]?.position].coordinate)
+//        if (angle_max< angle_min){
+//            angle_max += 180
+//        }
+        var angle_max2 = p2a(max.keyPoints[joints!![0]?.position].coordinate,
+            max.keyPoints[joints!![1]?.position].coordinate,
+            max.keyPoints[joints!![2]?.position].coordinate)
+        var angle_min2=  p2a(min.keyPoints[joints!![0]?.position].coordinate,
+            min.keyPoints[joints!![1]?.position].coordinate,
+            min.keyPoints[joints!![2]?.position].coordinate)
+
+
+
+
+
+        var ang1 = wrap_angle(min,mid,joint)
+        var ang2 = wrap_angle(min,max,joint)
+
+        var ang11 = wrap_angle360(min,mid,joint)
+        var ang22 = wrap_angle360(min,max,joint)
+        if(ang11>ang22){
+            ang22 = 360-ang22
+        }
+
+
+//        var altroangolo = points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
+//            min.keyPoints[joints!![1]?.position].coordinate ,
+//            align( min.keyPoints[joints!![1]?.position].coordinate ,max.keyPoints[joints!![1]?.position].coordinate, max.keyPoints[joints!![0]?.position].coordinate)
+//            )
+//        var angolo_invert = points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
+//            max.keyPoints[joints!![1]?.position].coordinate ,
+//            align( max.keyPoints[joints!![1]?.position].coordinate ,min.keyPoints[joints!![1]?.position].coordinate, min.keyPoints[joints!![0]?.position].coordinate)
+//        )
+
+        return (ang22)
+
+
+    }
 
     fun estremi(scores: List<Pair<String,Person>>,joint: Int):Float{
         val joint = IdToJoint[joint]

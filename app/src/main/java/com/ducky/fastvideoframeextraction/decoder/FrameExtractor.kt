@@ -5,6 +5,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.util.Log
+import androidx.core.net.toUri
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -43,7 +44,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
         var width: Int
         var height: Int
         try {
-            val inputFile: File = File(inputFilePath)
+            val inputFile = File(inputFilePath)
 
             // Check whether the input file exist or not
             if (!inputFile.canRead()) {
