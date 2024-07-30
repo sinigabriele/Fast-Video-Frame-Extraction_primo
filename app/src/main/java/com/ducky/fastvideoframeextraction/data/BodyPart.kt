@@ -16,6 +16,8 @@ limitations under the License.
 
 package com.ducky.fastvideoframeextraction.data
 
+import android.text.TextUtils.replace
+
 
 enum class BodyPart(val position: Int) {
     NOSE(0),
@@ -38,5 +40,19 @@ enum class BodyPart(val position: Int) {
     companion object{
         private val map = values().associateBy(BodyPart::position)
         fun fromInt(position: Int): BodyPart = map.getValue(position)
+    }
+
+
+
+
+    override fun toString(): String {
+        val joint =  super.toString()
+        var res = ""
+        var splitted = joint.split("_")
+        for ( item in splitted){
+            var lowered = item.toLowerCase()
+            res += lowered.capitalize() + " "
+        }
+        return res + "Joint"
     }
 }

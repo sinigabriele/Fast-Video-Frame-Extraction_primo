@@ -45,12 +45,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.OnItemClickListener{
 
 
 
+    object DataHolder {
+        var imageAdapter: ImageAdapter ? = null
+        var imagePaths: List<Uri> = listOf()
+        var detector: PoseDetector? = null
+        var scores: MutableList<Pair<String, Person>> = mutableListOf()
+        var selectedJointId: Int = 0
+    }
 
 
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
@@ -113,6 +121,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
                 Toast.makeText(this, "Video input error!", Toast.LENGTH_LONG).show()
             }
         }
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -160,6 +169,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
 
         val btn_takephoto_first: Button = this.findViewById(R.id.take_first_photo_bt)
         btn_takephoto_first.setOnClickListener {
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 openCamera()
             } else {
@@ -169,31 +179,29 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
 
         val btn_takephoto_second: Button = this.findViewById(R.id.take_second_photo_bt)
         btn_takephoto_second.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                compute()
-            } else {
-                Toast.makeText(this,"Sorry you're version android is not support, Min Android 6.0 (Marsmallow)", Toast.LENGTH_LONG).show()
+                val intent = Intent(this, FrameVisualize::class.java)
+                DataHolder.selectedJointId = selectedJointId
+                startActivity(intent)
             }
-        }
         updateRecyclerView()
     }
 
 
-    private fun compute(): Float {
-        var selected = imageAdapter.selectedItems
-        var midInd = selected.sum() / 2
-        selected.add(midInd)
-        for (item in selected) {
-            var bitmap = BitmapFactory.decodeFile(imagePaths[item].path)
-            if(detector!=null) {
-                val (processed, score) = processPhoto(bitmap, detector)
-                scores.add(Pair(imagePaths[item].path,score) as Pair<String, Person>)
-            }
-
-        }
-        val res= VisualizationUtils.posiComp(scores,selectedJointId)
-        return res
-    }
+//    private fun compute(): Float {
+//        var selected = imageAdapter.selectedItems
+//        var midInd = selected.sum() / 2
+//        selected.add(midInd)
+//        for (item in selected) {
+//            var bitmap = BitmapFactory.decodeFile(imagePaths[item].path)
+//            if(detector!=null) {
+//                val (processed, score) = processPhoto(bitmap, detector)
+//                scores.add(Pair(imagePaths[item].path,score) as Pair<String, Person>)
+//            }
+//
+//        }
+//        val res= VisualizationUtils.posiComp(scores,selectedJointId)
+//        return res
+//    }
 
     private fun openGalleryForVideo() {
         val intent = Intent()
@@ -221,6 +229,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
     override fun onItemClick(selectedIds: Set<Int>) {
         // Handle the selected item IDs
         Toast.makeText(this, "Selected IDs: $selectedIds", Toast.LENGTH_SHORT).show()
+        DataHolder.imageAdapter = imageAdapter
     }
 
     private fun getRequiredPermissions(): Array<String?> {
@@ -360,6 +369,11 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
 
         this.runOnUiThread {
             updateRecyclerView()
+            DataHolder.imageAdapter = imageAdapter
+            DataHolder.imagePaths = imagePaths
+            DataHolder.detector = detector
+            DataHolder.scores = scores
+            DataHolder.selectedJointId = selectedJointId
             infoTextView.text = "Extract $processedFrameCount frames took $processedTimeMs ms| Saving took: $totalSavingTimeMS ms"
         }
     }

@@ -117,7 +117,7 @@ object VisualizationUtils {
         return angle.toFloat()
     }
 
-    fun posiComp(scores: List<Pair<String,Person>>,joint: Int):Float{
+    fun posiComp(scores: List<Pair<String,Person>>,joint: Int):Int{
         val joint = IdToJoint[joint]
         var min = scores[0].second
         var max = scores[1].second
@@ -167,105 +167,105 @@ object VisualizationUtils {
 //            align( max.keyPoints[joints!![1]?.position].coordinate ,min.keyPoints[joints!![1]?.position].coordinate, min.keyPoints[joints!![0]?.position].coordinate)
 //        )
 
-        return (ang22)
+        return (ang22.toInt())
 
 
     }
 
-    fun estremi(scores: List<Pair<String,Person>>,joint: Int):Float{
-        val joint = IdToJoint[joint]
-        var min : Person
-        var max : Person
-        var mid : Person
-        var minIndx = 1
-        var maxIndx = 0
-        var midIndx = 0
-        var minFrame = scores[1].first
-        var maxFrame = ""
-        var midFrame = ""
-        var midBitmap : Bitmap?
-        val maxBitmap : Bitmap?
-        val minBitmap : Bitmap?
-        // minFrame, maxFrame = estremi(scores, joint)
-        if (scores.size !=0) {
-            min = scores[0].second
-            mid = scores[scores.size *3 / 10].second
-            max = scores[scores.size *8 / 10].second
-            maxIndx = scores.size *8 / 10
-            midIndx = scores.size *3 / 10
-
-            for (i in 1..scores.size - 1) {
-                if (i%2==0 && (scores[i].second.score > min.score) && (i < scores.size/10)) {
-                    min = scores[i].second
-
-                    minIndx = i
-                }
-                if (i%2==0 && (scores[i].second.score > max.score )&& (i > scores.size *8/10) ) {
-                    max = scores[i].second
-                    maxIndx = i
-                }
-                if(i%2==0 && (scores[i].second.score > mid.score )&& (i >(scores.size *3 / 10)) && (i< (scores.size *5 / 10))){
-                    mid = scores[i].second
-                    midIndx = i
-                }
-            }
-            minFrame = scores[minIndx].first
-            maxFrame = scores[maxIndx].first
-            midFrame = scores[midIndx].first
-        }
-        else return -1.0f
-        val maxFile = File(maxFrame)
-        val minFile = File(minFrame)
-        val midFile = File(midFrame)
-        if (maxFile.exists() && minFile.exists()) {
-            maxBitmap = BitmapFactory.decodeFile(maxFile.absolutePath)
-            minBitmap = BitmapFactory.decodeFile(minFile.absolutePath)
-            midBitmap = BitmapFactory.decodeFile(midFile.absolutePath)
-        }
-        var joints = JointAngle[joint]
-//        var angle_min =  points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
-//            min.keyPoints[joints!![1]?.position].coordinate,
-//            min.keyPoints[joints!![2]?.position].coordinate)
-//        var angle_max =  points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
+//    fun estremi(scores: List<Pair<String,Person>>,joint: Int):Float{
+//        val joint = IdToJoint[joint]
+//        var min : Person
+//        var max : Person
+//        var mid : Person
+//        var minIndx = 1
+//        var maxIndx = 0
+//        var midIndx = 0
+//        var minFrame = scores[1].first
+//        var maxFrame = ""
+//        var midFrame = ""
+//        var midBitmap : Bitmap?
+//        val maxBitmap : Bitmap?
+//        val minBitmap : Bitmap?
+//        // minFrame, maxFrame = estremi(scores, joint)
+//        if (scores.size !=0) {
+//            min = scores[0].second
+//            mid = scores[scores.size *3 / 10].second
+//            max = scores[scores.size *8 / 10].second
+//            maxIndx = scores.size *8 / 10
+//            midIndx = scores.size *3 / 10
+//
+//            for (i in 1..scores.size - 1) {
+//                if (i%2==0 && (scores[i].second.score > min.score) && (i < scores.size/10)) {
+//                    min = scores[i].second
+//
+//                    minIndx = i
+//                }
+//                if (i%2==0 && (scores[i].second.score > max.score )&& (i > scores.size *8/10) ) {
+//                    max = scores[i].second
+//                    maxIndx = i
+//                }
+//                if(i%2==0 && (scores[i].second.score > mid.score )&& (i >(scores.size *3 / 10)) && (i< (scores.size *5 / 10))){
+//                    mid = scores[i].second
+//                    midIndx = i
+//                }
+//            }
+//            minFrame = scores[minIndx].first
+//            maxFrame = scores[maxIndx].first
+//            midFrame = scores[midIndx].first
+//        }
+//        else return -1.0f
+//        val maxFile = File(maxFrame)
+//        val minFile = File(minFrame)
+//        val midFile = File(midFrame)
+//        if (maxFile.exists() && minFile.exists()) {
+//            maxBitmap = BitmapFactory.decodeFile(maxFile.absolutePath)
+//            minBitmap = BitmapFactory.decodeFile(minFile.absolutePath)
+//            midBitmap = BitmapFactory.decodeFile(midFile.absolutePath)
+//        }
+//        var joints = JointAngle[joint]
+////        var angle_min =  points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
+////            min.keyPoints[joints!![1]?.position].coordinate,
+////            min.keyPoints[joints!![2]?.position].coordinate)
+////        var angle_max =  points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
+////            max.keyPoints[joints!![1]?.position].coordinate,
+////            max.keyPoints[joints!![2]?.position].coordinate)
+////        if (angle_max< angle_min){
+////            angle_max += 180
+////        }
+//        var angle_max2 = p2a(max.keyPoints[joints!![0]?.position].coordinate,
 //            max.keyPoints[joints!![1]?.position].coordinate,
 //            max.keyPoints[joints!![2]?.position].coordinate)
-//        if (angle_max< angle_min){
-//            angle_max += 180
+//        var angle_min2=  p2a(min.keyPoints[joints!![0]?.position].coordinate,
+//            min.keyPoints[joints!![1]?.position].coordinate,
+//            min.keyPoints[joints!![2]?.position].coordinate)
+//
+//
+//
+//
+//
+//        var ang1 = wrap_angle(min,mid,joint)
+//        var ang2 = wrap_angle(min,max,joint)
+//
+//        var ang11 = wrap_angle360(min,mid,joint)
+//        var ang22 = wrap_angle360(min,max,joint)
+//        if(ang11>ang22){
+//            ang22 = 360-ang22
 //        }
-        var angle_max2 = p2a(max.keyPoints[joints!![0]?.position].coordinate,
-            max.keyPoints[joints!![1]?.position].coordinate,
-            max.keyPoints[joints!![2]?.position].coordinate)
-        var angle_min2=  p2a(min.keyPoints[joints!![0]?.position].coordinate,
-            min.keyPoints[joints!![1]?.position].coordinate,
-            min.keyPoints[joints!![2]?.position].coordinate)
-
-
-
-
-
-        var ang1 = wrap_angle(min,mid,joint)
-        var ang2 = wrap_angle(min,max,joint)
-
-        var ang11 = wrap_angle360(min,mid,joint)
-        var ang22 = wrap_angle360(min,max,joint)
-        if(ang11>ang22){
-            ang22 = 360-ang22
-        }
-
-
-//        var altroangolo = points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
-//            min.keyPoints[joints!![1]?.position].coordinate ,
-//            align( min.keyPoints[joints!![1]?.position].coordinate ,max.keyPoints[joints!![1]?.position].coordinate, max.keyPoints[joints!![0]?.position].coordinate)
-//            )
-//        var angolo_invert = points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
-//            max.keyPoints[joints!![1]?.position].coordinate ,
-//            align( max.keyPoints[joints!![1]?.position].coordinate ,min.keyPoints[joints!![1]?.position].coordinate, min.keyPoints[joints!![0]?.position].coordinate)
-//        )
-
-        return (ang22)
-
-
-    }
+//
+//
+////        var altroangolo = points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
+////            min.keyPoints[joints!![1]?.position].coordinate ,
+////            align( min.keyPoints[joints!![1]?.position].coordinate ,max.keyPoints[joints!![1]?.position].coordinate, max.keyPoints[joints!![0]?.position].coordinate)
+////            )
+////        var angolo_invert = points2D_to_angles(max.keyPoints[joints!![0]?.position].coordinate,
+////            max.keyPoints[joints!![1]?.position].coordinate ,
+////            align( max.keyPoints[joints!![1]?.position].coordinate ,min.keyPoints[joints!![1]?.position].coordinate, min.keyPoints[joints!![0]?.position].coordinate)
+////        )
+//
+//        return (ang22)
+//
+//
+//    }
 
     fun wrap_angle(posA : Person,posB : Person,joint: BodyPart?): Float{
         var joints = JointAngle[joint]
@@ -290,7 +290,7 @@ object VisualizationUtils {
         return PointF(C.x+Cx,C.y+Cy)
     }
 
-    private val IdToJoint = mapOf(
+     val IdToJoint = mapOf(
         0 to BodyPart.LEFT_KNEE,
         1 to BodyPart.LEFT_HIP,
         2 to BodyPart.LEFT_SHOULDER,
@@ -330,9 +330,14 @@ object VisualizationUtils {
         input: Bitmap,
         persons: List<Person>,
         isTrackerEnabled: Boolean = true,
+        showBG: Boolean = false
 
     ): Bitmap {
         var angJoints: MutableList<Pair<Float,List<BodyPart>>> = arrayListOf()   //<Pair<Float,List<BodyPart>>>
+        var outpu = input.copy(Bitmap.Config.RGBA_F16, true)
+        if (!showBG) {
+             outpu = createBitmap(input.width,input.height,Bitmap.Config.RGBA_F16)
+        }
         val paintCircle = Paint().apply {
             strokeWidth = CIRCLE_RADIUS
             color = Color.RED
@@ -363,8 +368,7 @@ object VisualizationUtils {
             textAlign = Paint.Align.LEFT
         }
         val inferenceStartTimeNanos = SystemClock.elapsedRealtimeNanos()
-        val outpu = createBitmap(input.width,input.height,Bitmap.Config.RGBA_F16)
-        val output = input.copy(Bitmap.Config.RGBA_F16, true)
+
         val originalSizeCanvas = Canvas(outpu)
         persons.forEach { person ->
             // draw person id if tracker is enable
@@ -417,6 +421,116 @@ object VisualizationUtils {
                         paintCircleRIGHT
                     )
                  }
+
+            }
+
+        }
+        val lastInferenceTimeNanos =
+            SystemClock.elapsedRealtimeNanos() - inferenceStartTimeNanos
+        Log.d("DRAWING TIME","Drawing time : " +(lastInferenceTimeNanos.toFloat()/1000000).toString() )
+        return outpu
+    }
+
+    // Draw line and point indicate body pose
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun drawBodyKeypointsSOVRA(
+        inputPair: Pair<Bitmap,Bitmap>,
+        persons: List<Person>,
+        selectedJoint: BodyPart,
+        isTrackerEnabled: Boolean = true,
+        showBG: Boolean = false
+
+    ): Bitmap {
+        var input = inputPair.first
+        var second = inputPair.second
+        var angJoints: MutableList<Pair<Float,List<BodyPart>>> = arrayListOf()   //<Pair<Float,List<BodyPart>>>
+        var outpu = input.copy(Bitmap.Config.RGBA_F16, true)
+        if (!showBG) {
+            outpu = createBitmap(input.width,input.height,Bitmap.Config.RGBA_F16)
+        }
+        val paintCircle = Paint().apply {
+            strokeWidth = CIRCLE_RADIUS
+            color = Color.RED
+            style = Paint.Style.FILL
+        }
+
+        val paintCircleRIGHT = Paint().apply {
+            strokeWidth = CIRCLE_RADIUS
+            color = Color.GREEN
+            style = Paint.Style.FILL
+        }
+
+        val paintLine = Paint().apply {
+            strokeWidth = LINE_WIDTH
+            color = Color.RED
+            style = Paint.Style.STROKE
+        }
+
+        val paintLineAng = Paint().apply {
+            strokeWidth = LINE_ANG
+            color = Color.LTGRAY
+            style = Paint.Style.STROKE
+        }
+
+        val paintText = Paint().apply {
+            textSize = PERSON_ID_TEXT_SIZE
+            color = Color.BLUE
+            textAlign = Paint.Align.LEFT
+        }
+        val inferenceStartTimeNanos = SystemClock.elapsedRealtimeNanos()
+
+        val originalSizeCanvas = Canvas(outpu)
+        persons.forEach { person ->
+            // draw person id if tracker is enable
+            if (isTrackerEnabled) {
+                person.boundingBox?.let {
+                    val personIdX = max(0f, it.left)
+                    val personIdY = max(0f, it.top)
+
+                    originalSizeCanvas.drawText(
+                        person.id.toString(),
+                        personIdX,
+                        personIdY - PERSON_ID_MARGIN,
+                        paintText
+                    )
+                    originalSizeCanvas.drawRect(it, paintLine)
+                }
+            }
+            bodyJoints.forEach {
+                val pointA = person.keyPoints[it.first.position].coordinate
+
+                val pointB = person.keyPoints[it.second.position].coordinate
+                originalSizeCanvas.drawLine(pointA.x, pointA.y, pointB.x, pointB.y, paintLine)
+            }
+
+            Joints.forEach{
+                val a = 1
+                val jointTop = person.keyPoints[it[0].position].coordinate
+                val jointMid = person.keyPoints[it[1].position].coordinate
+                val jointBot = person.keyPoints[it[2].position].coordinate
+                //originalSizeCanvas.drawLine(jointTop.x, jointTop.y, jointBot.x, jointBot.y, paintLineAng)
+                val angle = (points2D_to_angles(jointTop,jointMid,jointBot))
+
+                angJoints.add(Pair(angle,it))
+
+            }
+
+            person.keyPoints.forEach { point ->
+                if("LEFT" in point.bodyPart.name){
+                    originalSizeCanvas.drawCircle(
+                        point.coordinate.x,
+                        point.coordinate.y,
+                        CIRCLE_RADIUS,
+                        paintCircle
+                    )
+                }else{
+                    originalSizeCanvas.drawCircle(
+                        point.coordinate.x,
+                        point.coordinate.y,
+                        CIRCLE_RADIUS,
+                        paintCircleRIGHT
+                    )
+                }
 
             }
 
