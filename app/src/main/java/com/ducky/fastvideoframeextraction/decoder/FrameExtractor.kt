@@ -37,7 +37,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
     }
 
     @Throws(IOException::class)
-    fun extractFrames(inputFilePath: String) {
+    fun extractFrames(inputFilePath: String,reverseCamera:Boolean) {
         var decoder: MediaCodec? = null
         var outputSurface: CodecOutputSurface? = null
         var extractor: MediaExtractor? = null
@@ -125,7 +125,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
             Log.d(TAG, "Mime :  $mime")
             decoder.configure(format, outputSurface.getSurface(), null, 0)
             decoder.start()
-            doExtract(extractor, trackIndex, decoder, outputSurface)
+            doExtract(extractor, trackIndex, decoder, outputSurface, reverseCamera)
         } finally {
             // release everything we grabbed
             if (outputSurface != null) {
@@ -169,7 +169,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
      * Work loop.
      */
     @Throws(IOException::class)
-    fun doExtract(extractor: MediaExtractor, trackIndex: Int, decoder: MediaCodec, outputSurface: CodecOutputSurface) {
+    fun doExtract(extractor: MediaExtractor, trackIndex: Int, decoder: MediaCodec, outputSurface: CodecOutputSurface, reverseCamera : Boolean) {
         val TIMEOUT_USEC = 10000
         val decoderInputBuffers = decoder.inputBuffers
         val info = MediaCodec.BufferInfo()
@@ -255,7 +255,7 @@ class FrameExtractor(private val listener: IVideoFrameExtractor) {
                     if (doRender) {
                         if (verbose) Log.d(TAG, "Awaiting decode of frame $decodeCount")
                         outputSurface.awaitNewImage()
-                        if (isPortrait) {
+                        if (isPortrait || reverseCamera) {
                             outputSurface.drawImage(false)
                         } else {
                             outputSurface.drawImage(true)

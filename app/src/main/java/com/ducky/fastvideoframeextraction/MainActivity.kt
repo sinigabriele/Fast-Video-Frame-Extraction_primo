@@ -37,6 +37,10 @@ import com.ducky.fastvideoframeextraction.decoder.IVideoFrameExtractor
 import com.ducky.fastvideoframeextraction.ml.ModelType
 import com.ducky.fastvideoframeextraction.ml.MoveNet
 import com.ducky.fastvideoframeextraction.ml.PoseDetector
+import com.google.android.gms.tflite.client.TfLiteInitializationOptions
+import com.google.android.gms.tflite.gpu.support.TfLiteGpu
+import com.google.android.gms.tflite.java.TfLite
+
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -56,14 +60,14 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
         var imageAdapter: ImageAdapter ? = null
         var imagePaths: List<Uri> = listOf()
         var detector: PoseDetector? = null
-        var scores: MutableList<Pair<String, Person>> = mutableListOf()
+        //var scores: MutableList<Pair<String, Person>> = mutableListOf()
         var selectedJointId: Int = 0
     }
 
 
     private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
 
-
+    private var reverseCamera = false
     private lateinit var recyclerView: RecyclerView
     private lateinit var imageAdapter: ImageAdapter
     private val imagePaths = arrayListOf<Uri>()  // Add your image URIs here
@@ -92,7 +96,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
 
     private lateinit var detector : PoseDetector
     private var device = Device.CPU
-    private var scores = mutableListOf<Pair<String,Person>>()
+
 
     private var resultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -107,7 +111,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
                 executorService.execute {
                     try {
 
-                        frameExtractor.extractFrames(videoInputFile.absolutePath)
+                        frameExtractor.extractFrames(videoInputFile.absolutePath, reverseCamera )
                     } catch (exception: Exception) {
                         exception.printStackTrace()
                         this.runOnUiThread {
@@ -147,16 +151,28 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
             println("Selected joint: $selectedJoint")
         }
 
+        val useGpuTask = TfLiteGpu.isGpuDelegateAvailable(this)
+
+        val interpreterTask = useGpuTask.continueWith { useGpuTask ->
+            TfLite.initialize(this,
+                TfLiteInitializationOptions.builder()
+                    .setEnableGpuDelegateSupport(useGpuTask.result)
+                    .build())
+        }
+
+
         val videoSelectBt: Button = this.findViewById(R.id.select_bt)
         infoTextView = this.findViewById(R.id.info_tv)
         angleTextView = findViewById<TextView>(R.id.text_view)
         videoSelectBt.setOnClickListener {
             // Clear all previous images path and title
-            imagePaths.clear()
-            titles.clear()
+            imageAdapter.clearData()
             totalSavingTimeMS = 0
 
             openGalleryForVideo()
+            reverseCamera = false
+            DataHolder.imagePaths = imagePaths
+
         }
 
 
@@ -171,7 +187,10 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
         btn_takephoto_first.setOnClickListener {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                reverseCamera = true
+
                 openCamera()
+                imageAdapter.clearData()
             } else {
                 Toast.makeText(this,"Sorry you're version android is not support, Min Android 6.0 (Marsmallow)", Toast.LENGTH_LONG).show()
             }
@@ -179,10 +198,19 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
 
         val btn_takephoto_second: Button = this.findViewById(R.id.take_second_photo_bt)
         btn_takephoto_second.setOnClickListener {
+            if (this.imageAdapter.selectedItems.size != 2){
+                Toast.makeText(this,"Sorry you have to select 2 frames to proceed", Toast.LENGTH_LONG).show()
+            }else{
                 val intent = Intent(this, FrameVisualize::class.java)
+                DataHolder.selectedJointId = selectedJointId
+                DataHolder.imageAdapter = imageAdapter
+                DataHolder.imagePaths = imagePaths
+                DataHolder.detector = detector
+                //DataHolder.scores = scores
                 DataHolder.selectedJointId = selectedJointId
                 startActivity(intent)
             }
+        }
         updateRecyclerView()
     }
 
@@ -225,6 +253,13 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
         recyclerView.addItemDecoration(dividerItemDecorationVertical)
         recyclerView.addItemDecoration(dividerItemDecorationHorizontal)
     }
+    override fun onDestroy() {
+        super.onDestroy()
+        imageAdapter.clearData()
+    }
+
+
+
 
     override fun onItemClick(selectedIds: Set<Int>) {
         // Handle the selected item IDs
@@ -372,7 +407,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
             DataHolder.imageAdapter = imageAdapter
             DataHolder.imagePaths = imagePaths
             DataHolder.detector = detector
-            DataHolder.scores = scores
+           // DataHolder.scores = scores
             DataHolder.selectedJointId = selectedJointId
             infoTextView.text = "Extract $processedFrameCount frames took $processedTimeMs ms| Saving took: $totalSavingTimeMS ms"
         }
@@ -421,29 +456,7 @@ class MainActivity : AppCompatActivity(), IVideoFrameExtractor , ImageAdapter.On
         //cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, video_uri)
         startActivityForResult(cameraIntent, VIDEO_CAPTURE_CODE)
 
-
-//        val videoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-//        if (videoIntent.resolveActivity(packageManager) != null) {
-//            val videoFile: File? = try {
-//                createVideoFile()
-//            } catch (ex: IOException) {
-//                // Handle error
-//                null
-//            }
-//            videoFile?.also {
-//                videoUri = FileProvider.getUriForFile(
-//                    this,
-//                    "${BuildConfig.APPLICATION_ID}.provider",
-//                    it
-//                )
-//                videoIntent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri)
-//                startActivityForResult(videoIntent, REQUEST_VIDEO_CAPTURE)
-//            }
-//        }
     }
-//        if (cameraIntent.resolveActivity(packageManager) != null) {
-//            startActivityForResult(videoIntent, REQUEST_VIDEO_CAPTURE)
-//        }
 
 
 
@@ -499,6 +512,7 @@ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) 
     }
     when(requestCode){
         VIDEO_CAPTURE_CODE -> {
+            imageAdapter.clearData()
             val videoUri = data?.data
             if(videoUri == null){
                 return
@@ -515,7 +529,7 @@ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) 
             executorService.execute {
                 try {
 
-                    savedfile?.let { frameExtractor.extractFrames(it.absolutePath) }
+                    savedfile?.let { frameExtractor.extractFrames(it.absolutePath,reverseCamera) }
                 } catch (exception: Exception) {
                     exception.printStackTrace()
                     this.runOnUiThread {

@@ -78,11 +78,11 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:text="Record position"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toRightOf="@id/select_bt"
             app:layout_constraintRight_toLeftOf="@id/take_second_photo_bt"
-            app:layout_constraintWidth_percent="0.33"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintWidth_percent="0.33" />
 
         <Button
             android:id="@+id/take_second_photo_bt"

@@ -23,14 +23,19 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Paint.Join
 import android.graphics.PointF
+import android.graphics.RectF
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.graphics.createBitmap
+import com.ducky.fastvideoframeextraction.Utils.transformVectors
 import com.ducky.fastvideoframeextraction.data.BodyPart
+import com.ducky.fastvideoframeextraction.data.KeyPoint
 import com.ducky.fastvideoframeextraction.data.Person
 import java.io.File
+import java.io.IOException
+import kotlin.math.absoluteValue
 import kotlin.math.atan2
 import kotlin.math.max
 
@@ -78,12 +83,14 @@ object VisualizationUtils {
             "LEFT_KNEE" to listOf(BodyPart.LEFT_HIP,BodyPart.LEFT_KNEE,BodyPart.LEFT_ANKLE),
             "LEFT_HIP" to listOf(BodyPart.LEFT_SHOULDER,BodyPart.LEFT_HIP,BodyPart.LEFT_KNEE),
             "RIGHT_HIP" to listOf(BodyPart.RIGHT_SHOULDER,BodyPart.RIGHT_HIP,BodyPart.RIGHT_KNEE),
-            "RIGHT_SHOULDER" to listOf(BodyPart.RIGHT_ELBOW,BodyPart.RIGHT_SHOULDER,BodyPart.RIGHT_HIP),
-            "LEFT_SHOULDER" to listOf(BodyPart.LEFT_ELBOW,BodyPart.LEFT_SHOULDER,BodyPart.LEFT_HIP),
-            "LEFT_ELBOW" to listOf(BodyPart.LEFT_WRIST,BodyPart.LEFT_ELBOW,BodyPart.LEFT_SHOULDER),
-            "RIGHT_ELBOW" to listOf(BodyPart.RIGHT_WRIST,BodyPart.RIGHT_ELBOW,BodyPart.RIGHT_SHOULDER),
-    
-        )
+            "RIGHT_SHOULDER" to listOf(BodyPart.RIGHT_HIP,BodyPart.RIGHT_SHOULDER,BodyPart.RIGHT_ELBOW),
+            "LEFT_SHOULDER" to listOf(BodyPart.LEFT_HIP,BodyPart.LEFT_SHOULDER,BodyPart.LEFT_ELBOW),
+//            "LEFT_ELBOW" to listOf(BodyPart.LEFT_WRIST,BodyPart.LEFT_ELBOW,BodyPart.LEFT_SHOULDER),
+//            "RIGHT_ELBOW" to listOf(BodyPart.RIGHT_WRIST,BodyPart.RIGHT_ELBOW,BodyPart.RIGHT_SHOULDER),
+            "LEFT_ELBOW" to listOf(BodyPart.LEFT_SHOULDER,BodyPart.LEFT_ELBOW,BodyPart.LEFT_WRIST),
+            "RIGHT_ELBOW" to listOf(BodyPart.RIGHT_SHOULDER,BodyPart.RIGHT_ELBOW,BodyPart.RIGHT_WRIST)
+
+            )
 
     private fun points2D_to_angles(top: PointF,mid: PointF,bot: PointF) : Float {
 
@@ -126,7 +133,7 @@ object VisualizationUtils {
         var maxIndx = 1
         var midIndx = 2
 
-
+        var a = JointConnected(joint)
         var joints = JointAngle[joint]
 //        var angle_min =  points2D_to_angles(min.keyPoints[joints!![0]?.position].coordinate,
 //            min.keyPoints[joints!![1]?.position].coordinate,
@@ -277,17 +284,52 @@ object VisualizationUtils {
 
     fun wrap_angle360(posA : Person,posB : Person,joint: BodyPart?): Float{
         var joints = JointAngle[joint]
-        return p2a(posA.keyPoints[joints!![0]?.position].coordinate,
+        var ang =  p2a(posA.keyPoints[joints!![0]?.position].coordinate,
             posA.keyPoints[joints!![1]?.position].coordinate ,
             align( posA.keyPoints[joints!![1]?.position].coordinate ,posB.keyPoints[joints!![1]?.position].coordinate, posB.keyPoints[joints!![0]?.position].coordinate)
         )
+        var ang2 = rototodo(posA ,posB, joint)
+        return ang2
     }
+
+
+    fun rototodo(posA : Person,posB : Person,joint: BodyPart?): Float {
+        val joints = JointAngle[joint]
+        val p0 = posA.keyPoints[joints!![0].position].coordinate
+        val p1 = posA.keyPoints[joints[2].position].coordinate
+        val p2 = posA.keyPoints[joints[1].position].coordinate
+        val q1 = posB.keyPoints[joints[2].position].coordinate
+        val q2 = posB.keyPoints[joints[1].position].coordinate
+
+        val r2 = posB.keyPoints[joints[0].position].coordinate
+
+        val (new_q1, new_q2, new_r2) = transformVectors(p1, p2,q1,q2,q2,r2)
+        posB.keyPoints[joints[0].position].coordinate = new_r2
+        posB.keyPoints[joints[1].position].coordinate = new_q2
+        return p2a(p0,
+            p2 ,
+           new_r2
+        )
+    }
+
 
     fun align(A: PointF,B:PointF, C : PointF):PointF{
         var Cx = (A.x - B.x)
         var Cy = (A.y - B.y)
 
         return PointF(C.x+Cx,C.y+Cy)
+    }
+
+    fun traslation(A: PointF,B:PointF):Pair<Float,Float>{
+        var Cx = (A.x - B.x)
+        var Cy = (A.y - B.y)
+
+        return Pair(Cx,Cy)
+    }
+    fun traslateP(pair : Pair<Float,Float>, point : PointF): PointF{
+        point.x += pair.first
+        point.y += pair.second
+        return point
     }
 
      val IdToJoint = mapOf(
@@ -436,18 +478,30 @@ object VisualizationUtils {
     fun drawBodyKeypointsSOVRA(
         inputPair: Pair<Bitmap,Bitmap>,
         persons: List<Person>,
-        selectedJoint: BodyPart,
+        selectedJoint: Int,
         isTrackerEnabled: Boolean = true,
-        showBG: Boolean = false
+        showBG: Boolean = false,
+        angle: Float
 
     ): Bitmap {
         var input = inputPair.first
         var second = inputPair.second
-        var angJoints: MutableList<Pair<Float,List<BodyPart>>> = arrayListOf()   //<Pair<Float,List<BodyPart>>>
+
+        var primaP = persons[0]
+        var secondP = persons[1]
+        var persons = arrayListOf<Person>()
+        persons.add(primaP)
+       // var angJoints: MutableList<Pair<Float,List<BodyPart>>> = arrayListOf()   //<Pair<Float,List<BodyPart>>>
+
+        val joint = IdToJoint[selectedJoint]
+        var traslation = traslation(primaP.keyPoints[joint?.position!!].coordinate, secondP.keyPoints[joint?.position!!].coordinate) //calcolo la traslazione detra l'articolazione di interesse delle due poszioni
+        val jointToTraslate = JointConnected(joint)
+
         var outpu = input.copy(Bitmap.Config.RGBA_F16, true)
         if (!showBG) {
             outpu = createBitmap(input.width,input.height,Bitmap.Config.RGBA_F16)
         }
+
         val paintCircle = Paint().apply {
             strokeWidth = CIRCLE_RADIUS
             color = Color.RED
@@ -465,6 +519,12 @@ object VisualizationUtils {
             color = Color.RED
             style = Paint.Style.STROKE
         }
+        val paintLineSovra = Paint().apply {
+            strokeWidth = LINE_WIDTH
+            color = Color.BLUE
+            style = Paint.Style.STROKE
+        }
+
 
         val paintLineAng = Paint().apply {
             strokeWidth = LINE_ANG
@@ -479,7 +539,15 @@ object VisualizationUtils {
         }
         val inferenceStartTimeNanos = SystemClock.elapsedRealtimeNanos()
 
-        val originalSizeCanvas = Canvas(outpu)
+        val traslPoints = arrayListOf<KeyPoint>()
+        for(j in jointToTraslate){
+            val point = secondP.keyPoints[j.position]
+//            point.coordinate.x += traslation.first
+//            point.coordinate.y += traslation.second
+            traslPoints.add(point)
+        }
+
+        var originalSizeCanvas = Canvas(outpu)
         persons.forEach { person ->
             // draw person id if tracker is enable
             if (isTrackerEnabled) {
@@ -502,18 +570,76 @@ object VisualizationUtils {
                 val pointB = person.keyPoints[it.second.position].coordinate
                 originalSizeCanvas.drawLine(pointA.x, pointA.y, pointB.x, pointB.y, paintLine)
             }
+            val bodyPartList = traslPoints.map { keyPoint -> keyPoint.bodyPart }
 
-            Joints.forEach{
-                val a = 1
-                val jointTop = person.keyPoints[it[0].position].coordinate
-                val jointMid = person.keyPoints[it[1].position].coordinate
-                val jointBot = person.keyPoints[it[2].position].coordinate
-                //originalSizeCanvas.drawLine(jointTop.x, jointTop.y, jointBot.x, jointBot.y, paintLineAng)
-                val angle = (points2D_to_angles(jointTop,jointMid,jointBot))
 
-                angJoints.add(Pair(angle,it))
+            bodyJoints.forEach {
+                try{
+                    val firstPartMatches = bodyPartList.contains(it.first)
+                    val secondPartMatches = bodyPartList.contains(it.second)
+
+                    if (firstPartMatches && secondPartMatches) {
+                        var pointA = PointF()
+                        var pointB = PointF()
+                        for(j in traslPoints){
+                            if (j.bodyPart == it.first) {
+                                pointA = j.coordinate
+                            }
+                            if (j.bodyPart == it.second) {
+                                pointB = j.coordinate
+                            }
+                        }
+
+
+                        originalSizeCanvas.drawLine(pointA.x, pointA.y, pointB.x, pointB.y, paintLineSovra)
+                    }
+
+                }catch(e: IOException){
+                    Log.d("SOVRA DRAW","ERRORE nella traslazione dei punti")
+                }finally{
+                    Log.d("SOVRA DRAW","ERRORE nella traslazione dei punti")
+                }
 
             }
+            traslPoints.forEach { point ->
+                if("LEFT" in point.bodyPart.name){
+                    originalSizeCanvas.drawCircle(
+                        point.coordinate.x,
+                        point.coordinate.y,
+                        CIRCLE_RADIUS,
+                        paintCircle
+                    )
+                }else{
+                    originalSizeCanvas.drawCircle(
+                        point.coordinate.x,
+                        point.coordinate.y,
+                        CIRCLE_RADIUS,
+                        paintCircleRIGHT
+                    )
+                }
+
+            }
+
+            originalSizeCanvas = drawSemiCircle(originalSizeCanvas,
+                primaP.keyPoints[joint.position].coordinate,
+                primaP.keyPoints[triJoints[joint.name]?.get(2)!!.position].coordinate,
+                traslateP(traslation,secondP.keyPoints[triJoints[joint.name]?.get(2)!!.position].coordinate),
+                angle
+                )
+
+
+
+//            Joints.forEach{
+//                val a = 1
+//                val jointTop = person.keyPoints[it[0].position].coordinate
+//                val jointMid = person.keyPoints[it[1].position].coordinate
+//                val jointBot = person.keyPoints[it[2].position].coordinate
+//                //originalSizeCanvas.drawLine(jointTop.x, jointTop.y, jointBot.x, jointBot.y, paintLineAng)
+//                val angle = (points2D_to_angles(jointTop,jointMid,jointBot))
+//
+//                angJoints.add(Pair(angle,it))
+//
+//            }
 
             person.keyPoints.forEach { point ->
                 if("LEFT" in point.bodyPart.name){
@@ -535,12 +661,72 @@ object VisualizationUtils {
             }
 
         }
+
         val lastInferenceTimeNanos =
             SystemClock.elapsedRealtimeNanos() - inferenceStartTimeNanos
         Log.d("DRAWING TIME","Drawing time : " +(lastInferenceTimeNanos.toFloat()/1000000).toString() )
         return outpu
     }
 
+    fun drawSemiCircle(canvas: Canvas, C: PointF, P1: PointF, P2: PointF, angle: Float): Canvas {
+        val cx = C.x
+        val cy = C.y
+        val x1 = P1.x
+        val y1 = P1.y
+        val x2 = P2.x
+        val y2 = P2.y
 
+        // Create a paint object to define the style of the drawing
+        val paint = Paint()
+        paint.color = Color.argb(128, 0, 102, 102) // Set the color you want
+        paint.style = Paint.Style.FILL_AND_STROKE // Define if the style is fill or stroke
+        paint.strokeWidth = 5f // Set the stroke width
+
+        // Calculate the radius as the distance from the center to one of the points
+        val radius = Math.hypot((cx - x1).toDouble(), (cy - y1).toDouble()).toFloat()/2
+
+        // Calculate the bounding rectangle for the circle
+        val rectF = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+
+        // Determine the start and sweep angle for the arc
+        val startAngle = Math.toDegrees(Math.atan2((y1 - cy).toDouble(), (x1 - cx).toDouble())).toFloat()
+        val endAngle = Math.toDegrees(Math.atan2((y2 - cy).toDouble(), (x2 - cx).toDouble())).toFloat()
+        var sweepAngle = endAngle - startAngle// if (endAngle >= startAngle)  360f + endAngle - startAngle else  endAngle - startAngle
+        if((sweepAngle.absoluteValue - angle)>(360f+sweepAngle - angle))    {                                         //(sweepAngle.absoluteValue > angle +10f ||sweepAngle.absoluteValue < angle - 10f ){
+            sweepAngle+=360f
+        }else{
+            sweepAngle = if(sweepAngle>0) angle else -angle
+        }
+        // Draw the arc (semicircle)
+        canvas.drawArc(rectF, startAngle, sweepAngle, true, paint)
+
+        return canvas
+    }
+
+
+   fun JointConnected(bodyPart: BodyPart?):ArrayList<BodyPart>{
+       var jointList = ArrayList<BodyPart>()
+       var addedJoint = bodyPart
+       if (addedJoint != null) {
+           jointList.add(addedJoint)
+       }
+       var test = true
+
+       try {
+           while (test) {
+               if (addedJoint != null) {
+                   addedJoint = triJoints[addedJoint.name]!![2]
+               }
+               addedJoint?.let { jointList.add(it) }
+           }
+       }catch (e: IOException) {
+           test= false
+
+       }finally {
+           return jointList
+       }
+
+       return jointList
+   }
 
 }

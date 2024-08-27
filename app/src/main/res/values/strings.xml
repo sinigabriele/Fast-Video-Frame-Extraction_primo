@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Fast Frame Extraction</string>
+    <string name="app_name">ASA Pose</string>
 
     <string-array name="Joints">
         <item>Left Knee</item>

@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.ducky.fastvideoframeextraction.data.Device
 import com.ducky.fastvideoframeextraction.data.KeyPoint
@@ -21,10 +22,11 @@ class FrameVisualize : AppCompatActivity() {
     val imageAdapter = MainActivity.DataHolder.imageAdapter
     val imagePaths = MainActivity.DataHolder.imagePaths
     val detector = MainActivity.DataHolder.detector
-    val scores = MainActivity.DataHolder.scores
+//    val scores = MainActivity.DataHolder.scores
     val selectedJointId = MainActivity.DataHolder.selectedJointId
     private lateinit var poseOne: Bitmap
     private lateinit var poseTwo: Bitmap
+    private lateinit var poseComb: Bitmap
     private lateinit var angleComputed : String
     val device = Device.CPU
 
@@ -37,6 +39,7 @@ class FrameVisualize : AppCompatActivity() {
 
         val imageView1: ImageView = findViewById(R.id.imageView1)
         val imageView2: ImageView = findViewById(R.id.imageView2)
+        val imageView3: ImageView = findViewById(R.id.imageView3)
         val textView: TextView = findViewById(R.id.textViewTop)
 
         compute()
@@ -44,41 +47,66 @@ class FrameVisualize : AppCompatActivity() {
         // Imposta le immagini e il testo come necessario
         imageView1.setImageBitmap(poseOne)
         imageView2.setImageBitmap(poseTwo)
+        imageView3.setImageBitmap(poseComb)
+
         textView.text = "The angle of "+VisualizationUtils.IdToJoint[selectedJointId].toString() +" is " + angleComputed + " degrees"
 
     }
 
 
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun compute() {
         var selected = imageAdapter?.selectedItems
         var bitmaps = ArrayList<Bitmap>()
         var twoPerson = ArrayList<Person>()
-
-        var midInd = selected!!.sum() / 2
-        selected.add(midInd)
-
-        for (item in selected) {
-            var bitmap = BitmapFactory.decodeFile(imagePaths[item].path)
+        var twoBitmap = ArrayList<Bitmap>()
+        var scores = mutableListOf<Pair<String,Person>>()
+        //var midInd = selected!!.sum() /2
+        var midInd = selected!!.maxOrNull()?.minus(selected.minOrNull()!!)
+        midInd = selected.minOrNull()?.plus((midInd!! /4*3))
+       // midInd = (selected.maxOrNull()!! + midInd)/2
+        //selected.add(midInd)
+        var first = true
+        for (item in selected + midInd ) {
+            var bitmap = BitmapFactory.decodeFile(imagePaths[item!!].path)
+            twoBitmap.add(bitmap)
             if(detector!=null) {
-                val (processed, score) = processPhoto(bitmap, detector)
+                val (processed, score) = processPhoto(bitmap, detector,true,first)
                 scores.add(Pair(imagePaths[item].path,score) as Pair<String, Person>)
                 processed?.let { bitmaps.add(it) }
             }
+            first = false
         }
 
-
+        val res= VisualizationUtils.posiComp(scores,selectedJointId)
+        twoPerson.add(scores[0].second)
+        twoPerson.add(scores[1].second)
+        val sovraImposed = computeSovra(Pair(twoBitmap[0],twoBitmap[1]),twoPerson,selectedJointId,res.toFloat())
+        poseComb = sovraImposed
         poseOne = bitmaps[0]
         poseTwo = bitmaps[1]
-        val res= VisualizationUtils.posiComp(scores,selectedJointId)
+
         angleComputed = res.toString()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun computeSovra(twoBitmap: Pair<Bitmap,Bitmap>, twoPerson : ArrayList<Person>, selected:Int,angle: Float): Bitmap{
+        return VisualizationUtils.drawBodyKeypointsSOVRA(twoBitmap,twoPerson,selected,true,false,angle)
+
     }
 
 
 
-    fun processPhoto(photo: Bitmap?, detector: PoseDetector) : Pair<Bitmap?, Person?> {
+    fun processPhoto(photo: Bitmap?, detector: PoseDetector,showBG: Boolean,first:Boolean) : Pair<Bitmap?, Person?> {
         val persons = mutableListOf<Person>()
         val pers_null = mutableListOf<KeyPoint>()
+        if(first){
+            photo?.let {
+                detector.estimatePoses(it)
+                detector.estimatePoses(it)
+            }
+        }
         photo?.let {
             detector.estimatePoses(it).let {
                 if (it != null) {
@@ -94,7 +122,7 @@ class FrameVisualize : AppCompatActivity() {
                         it,
                         persons.filter { it.score > .2f }, //      Companion.MIN_CONFIDENCE },
                         true,
-                        showBG = false
+                        showBG = showBG
                     )
                 } else {
                     TODO("VERSION.SDK_INT < O")
